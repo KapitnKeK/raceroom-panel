@@ -469,6 +469,8 @@ def to_view(item: dict, role: str) -> dict:
             "players": [
                 {"name": p.get("Name") or p.get("UserName") or "?", "raw": p}
                 for p in (ps.get("Players") or [])
+                # Zuschauer (Broadcast-Bot) ohne Auto: Position 0/0, kein Ping
+                if not (p.get("X") == 0 and p.get("Z") == 0 and (p.get("LatestPingMilliSec") is None or p["LatestPingMilliSec"] < 0))
             ],
         },
     }

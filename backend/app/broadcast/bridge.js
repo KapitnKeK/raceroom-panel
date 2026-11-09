@@ -8,7 +8,7 @@
   if (!window.r3e) { el.textContent = 'Kein RaceRoom-Client (r3e.js)'; return }
   function tick() {
     try {
-      r3e.getDriversInfo(function (d) { state.drivers = d });
+      r3e.getDriversInfo(function (d) { state.drivers = Array.isArray(d) ? d : ((d && d.driversInfo) || []) });
       r3e.getSessionInfo(function (s) { state.session = s });
       r3e.getEventInfo(function (e) { state.event = e });
     } catch (e) { }

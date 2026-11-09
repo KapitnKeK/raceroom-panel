@@ -23,6 +23,16 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel, Field
 
+
+def is_spectator(p: dict) -> bool:
+    """Zuschauer (z. B. der Broadcast-Bot) stehen in der Spielerliste ohne Auto: Position exakt 0/0, kein Ping."""
+    ping = p.get("LatestPingMilliSec")
+    return p.get("X") == 0 and p.get("Z") == 0 and (ping is None or ping < 0)
+
+
+def drivers_only(players: Optional[list]) -> list:
+    return [p for p in (players or []) if not is_spectator(p)]
+
 GRID = 3.0            # Meter pro Zelle des Streckenumrisses
 RECORD_MIN_KMH = 25.0  # darunter wird nicht aufgezeichnet (Box, Start, Stillstand)
 MAX_SEGMENT_M = 70.0   # längere Sprünge werden nicht interpoliert
@@ -186,7 +196,7 @@ class Live:
             # --- Zeitbasis: Δ SessionTime des Servers; steht der still (z. B. 0), gilt der Report-Takt
             t_ms = ps["SessionTime"]
             interval = (gs.get("StateReportInterval") or 3000) / 1000.0
-            sig = tuple((q["UserId"], q["X"], q["Z"]) for q in (ps.get("Players") or []))
+            sig = tuple((q["UserId"], q["X"], q["Z"]) for q in drivers_only(ps.get("Players")))
             ts_changed = bool(ps["Running"]) and st["t_ms"] != t_ms
             pos_changed = bool(ps["Running"]) and st.get("sig") is not None and sig != st.get("sig")
             new_sample = ts_changed or pos_changed
@@ -201,10 +211,10 @@ class Live:
             else:
                 st["sig"] = None
 
-            # --- Fahrer
+            # --- Fahrer (Zuschauer wie der Broadcast-Bot ausblenden)
             players = []
             uids_now: set[int] = set()
-            for p in ps.get("Players") or []:
+            for p in drivers_only(ps.get("Players")):
                 uid = p["UserId"]
                 uids_now.add(uid)
                 x, z = p["X"], p["Z"]
@@ -721,7 +731,11 @@ def setup(app, d: dict[str, Callable]) -> Live:
         body = await request.json()
         if not isinstance(body, dict):
             raise HTTPException(422, "Ungültig")
-        hub.bot = {"ts": time.time(), "drivers": (body.get("drivers") or [])[:64], "session": body.get("session"), "event": body.get("event")}
+        drv = body.get("drivers")
+        if isinstance(drv, dict):  # GetDriversInfo liefert {"driversInfo": [...]}
+            drv = drv.get("driversInfo")
+        drv = [d for d in drv if isinstance(d, dict)][:64] if isinstance(drv, list) else []
+        hub.bot = {"ts": time.time(), "drivers": drv, "session": body.get("session"), "event": body.get("event")}
         cmd, hub.bot_cmd = hub.bot_cmd, None
         return {"ok": True, "command": cmd}
 
