@@ -9,7 +9,7 @@ import Drivers, { Avatar } from '../components/Drivers'
 import SpeedChart from '../components/SpeedChart'
 import { Chat, EventFeed } from '../components/Feed'
 import Editor from './Editor'
-import { BotSetup, BotStandings, BotVideo } from '../components/Bot'
+import { BotCamera, BotSetup, BotStandings, BotVideo } from '../components/Bot'
 import { Badge, Card, Confirm, Empty, Field, Spinner, useAsync, useToast } from '../components/ui'
 import { INCIDENT_TYPES, driverColor, fmtClock, flagEmoji, liveryImg } from '../utils'
 
@@ -226,6 +226,7 @@ export default function ServerPage() {
 
       <div className="mb-5 flex gap-1 border-b border-ink-600">
         <button className={`tab ${tab === 'live' ? 'tab-active' : ''}`} onClick={() => setTab('live')}><Radio size={14} className="mr-1.5 inline" />Live</button>
+        {snap.bot?.connected && <button className={`tab ${tab === 'camera' ? 'tab-active' : ''}`} onClick={() => setTab('camera')}><Video size={14} className="mr-1.5 inline" />Kamera</button>}
         {canHost && <button className={`tab ${tab === 'control' ? 'tab-active' : ''}`} onClick={() => setTab('control')}><Megaphone size={14} className="mr-1.5 inline" />Steuerung</button>}
         {canHost && <button className={`tab ${tab === 'settings' ? 'tab-active' : ''}`} onClick={() => setTab('settings')}><Settings size={14} className="mr-1.5 inline" />Einstellungen</button>}
       </div>
@@ -255,6 +256,11 @@ export default function ServerPage() {
             <Card title="Chat"><Chat server={server} canHost={canHost} /></Card>
           </div>
         </div>
+      )}
+
+      {tab === 'camera' && (
+        <BotCamera bot={snap.bot} names={names} canHost={canHost}
+          map={<TrackMap layoutId={server.layout_id} players={players} names={names} hist={hist} serverId={sid} selected={sel} onSelect={setSel} reportMs={server.state_report_ms} />} />
       )}
 
       {tab === 'control' && canHost && <ControlTab server={server} names={names} isAdmin={isAdmin} stream={stream} setStream={setStream} />}
