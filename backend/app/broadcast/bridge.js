@@ -49,13 +49,13 @@
     } catch (e) { }
     autoFocus();
     state.focus = focus;
-    post('/api/bot/ingest', state).then(function (r) { return r.json() }).then(function (res) {
+    post('/api/bot/ingest', state).then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json() }).then(function (res) {
       fails = 0;
       var c = res && res.command;
       if (c && c.camera === 'auto') { manualUntil = 0; focus = null }
       else if (c && cam(c.camera, c.slotId)) manualUntil = Date.now() + 5 * 60 * 1000;  // Regie hat 5 min Vorrang
       el.textContent = 'Panel-Bridge verbunden · ' + (state.drivers || []).length + ' Fahrer [' + rawInfo + ']' + (focus !== null ? ' · Kamera Slot ' + focus : '');
-    }).catch(function () { fails++; el.textContent = 'Panel-Bridge: keine Verbindung (' + fails + ')' });
+    }).catch(function (e) { fails++; el.textContent = 'Panel-Bridge: ' + (e && e.message ? e.message : 'keine Verbindung') + ' (' + fails + ')' });
   }
   try { r3e.on.resultsUpdate(function (r) { post('/api/bot/results', r) }) } catch (e) { }
   try { r3e.on.eventOccurred(function (e) { post('/api/bot/event', e) }) } catch (e) { }

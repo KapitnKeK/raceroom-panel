@@ -713,7 +713,8 @@ def setup(app, d: dict[str, Callable]) -> Live:
 
     def _check_bot(request: Request) -> None:
         import hmac as _h
-        if not _h.compare_digest(request.headers.get("x-bot-token", ""), _bot_token()):
+        # RaceRoom schreibt die -broadcastUrl in Kleinbuchstaben -> Token ohne Beachtung der Groß-/Kleinschreibung prüfen
+        if not _h.compare_digest(request.headers.get("x-bot-token", "").lower().encode(), _bot_token().lower().encode()):
             raise HTTPException(403, "Falscher Bot-Token")
 
     _BC_DIR = __import__("pathlib").Path(__file__).with_name("broadcast")
