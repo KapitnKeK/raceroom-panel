@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Camera, Copy, Eye, Flag, Save, Trophy, Video } from 'lucide-react'
+import { Camera, Copy, Eye, Flag, LayoutPanelLeft, Maximize2, Save, Trophy, Video, Wand2 } from 'lucide-react'
 import Hls from 'hls.js'
 import { api } from '../api'
 import { Badge, Card, Field, Spinner, useAsync, useToast } from './ui'
@@ -11,7 +11,105 @@ export const fmtLap = (ms) => {
   return m ? `${m}:${s}` : s
 }
 
-const CAMS = [['cockpit', 'Cockpit'], ['onboard', 'Onboard'], ['nosecam', 'Nase'], ['swingman', 'Verfolger'], ['trackside', 'TV']]
+const CAMS = [['cockpit', 'Cockpit'], ['onboard', 'Onboard'], ['nosecam', 'Nase'], ['swingman', 'Verfolger'], ['tv', 'TV'], ['heli', 'Heli']]
+
+
+// Ansichten: [Schlüssel, Name, Gruppe]
+export const VIEWS = [
+  ['swingman', 'Verfolger', 'Auto'], ['cockpit', 'Cockpit', 'Auto'], ['onboard', 'Onboard', 'Auto'], ['nosecam', 'Nase', 'Auto'],
+  ['frontCam', 'Front', 'Auto'], ['rearCam', 'Heck', 'Auto'], ['wing', 'Flügel', 'Auto'], ['exhaust', 'Auspuff', 'Auto'],
+  ['tv', 'TV', 'Strecke'], ['trackside', 'Streckenrand', 'Strecke'], ['action', 'Action', 'Strecke'], ['heli', 'Hubschrauber', 'Strecke'], ['static', 'Fest', 'Strecke'],
+]
+
+export function Player({ className = '' }) {
+  const ref = useRef(null)
+  const [ok, setOk] = useState(null)
+  useEffect(() => {
+    const src = '/api/bot/hls/stream.m3u8'
+    let hls
+    fetch(src, { credentials: 'same-origin' }).then((r) => {
+      if (!r.ok) { setOk(false); return }
+      setOk(true)
+      const v = ref.current
+      if (Hls.isSupported()) {
+        hls = new Hls({ enableWorker: false, liveSyncDurationCount: 2, xhrSetup: (x) => { x.withCredentials = true } })
+        hls.loadSource(src); hls.attachMedia(v)
+      } else if (v.canPlayType('application/vnd.apple.mpegurl')) { v.src = src }
+    }).catch(() => setOk(false))
+    return () => hls?.destroy()
+  }, [])
+  return (
+    <div className={`relative aspect-video overflow-hidden rounded-lg border border-ink-600 bg-black ${className}`}>
+      {ok !== false && <video ref={ref} className="h-full w-full" muted autoPlay playsInline controls />}
+      {ok === null && <div className="absolute inset-0 grid place-items-center"><Spinner /></div>}
+      {ok === false && <div className="absolute inset-0 grid place-items-center text-sm text-ink-300">Kein Videostream verfügbar</div>}
+    </div>
+  )
+}
+
+export function BotCamera({ bot, names, canHost, map }) {
+  const [busy, run] = useAsync()
+  const [view, setView] = useState('swingman')
+  const [layout, setLayout] = useState('video')
+  const [auto, setAuto] = useState(true)
+  useEffect(() => { const c = bot?.last_cmd; if (c) { if (c.camera === 'auto') setAuto(true); else { setAuto(false); setView(c.camera) } } }, [bot?.last_cmd?.ts])
+  if (!bot?.connected) return <Card title="Live-Kamera"><p className="py-8 text-center text-sm text-ink-300">Der Zuschauer-Bot ist gerade nicht mit diesem Server verbunden.</p></Card>
+  const drivers = bot.drivers || []
+  const focus = bot.focus
+  const cur = drivers.find((d) => d.slot === focus)
+  const nm = (d) => names[String(d.user_id)]?.name || d.name || `Slot ${d.slot}`
+  const send = (camera, slot) => run(() => api('/api/bot/camera', { method: 'POST', body: { slot, camera } }), camera === 'auto' ? 'Kamera folgt dem Führenden' : 'Kamera umgeschaltet')
+  const pickView = (k) => { setView(k); setAuto(false); const slot = focus ?? drivers[0]?.slot; if (slot != null) send(k, slot) }
+  const pickDriver = (d) => { setAuto(false); send(view, d.slot) }
+  const goAuto = () => { setAuto(true); send('auto', 0) }
+  const viewLabel = VIEWS.find((v) => v[0] === view)?.[1] || view
+  const groups = ['Auto', 'Strecke']
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge tone="red" dot>Live</Badge>
+        <span className="text-sm text-ink-200">{cur ? <>Folgt <b>{nm(cur)}</b></> : 'Kein Fahrer im Fokus'} · Ansicht <b>{viewLabel}</b>{auto ? ' · automatisch' : ''}</span>
+        <div className="ml-auto flex gap-1">
+          <button className={`btn-sm ${layout === 'video' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setLayout('video')}><Maximize2 size={13} /> Video</button>
+          <button className={`btn-sm ${layout === 'split' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setLayout('split')}><LayoutPanelLeft size={13} /> Video + Karte</button>
+        </div>
+      </div>
+      <div className={layout === 'split' ? 'grid gap-4 xl:grid-cols-2' : ''}>
+        <Player />
+        {layout === 'split' && <div className="h-[360px] overflow-hidden rounded-lg border border-ink-600 xl:h-auto xl:min-h-[360px]">{map}</div>}
+      </div>
+      {canHost ? (
+        <Card title="Ansicht">
+          <div className="space-y-3">
+            {groups.map((g) => (
+              <div key={g} className="flex flex-wrap items-center gap-1.5">
+                <span className="w-16 text-xs uppercase tracking-wider text-ink-400">{g}</span>
+                {VIEWS.filter((v) => v[2] === g).map(([k, l]) => <button key={k} disabled={busy} className={`btn-sm ${view === k && !auto ? 'btn-primary' : 'btn-ghost'}`} onClick={() => pickView(k)}>{l}</button>)}
+              </div>
+            ))}
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="w-16 text-xs uppercase tracking-wider text-ink-400">Regie</span>
+              <button disabled={busy} className={`btn-sm ${auto ? 'btn-primary' : 'btn-ghost'}`} onClick={goAuto}><Wand2 size={13} /> Automatisch (Führender)</button>
+            </div>
+          </div>
+        </Card>
+      ) : <p className="text-xs text-ink-400">Die Kamera steuern Hosts und Admins.</p>}
+      <Card title="Fahrer" pad={false}>
+        <div className="flex flex-wrap gap-2 p-4">
+          {drivers.length === 0 && <span className="text-sm text-ink-300">Noch keine Fahrer auf der Strecke.</span>}
+          {drivers.map((d) => (
+            <button key={d.slot} disabled={!canHost || busy} onClick={() => pickDriver(d)}
+              className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm transition ${d.slot === focus ? 'border-accent bg-accent/10' : 'border-ink-600 hover:border-ink-400'} ${canHost ? '' : 'cursor-default'}`}>
+              <span className="font-display text-lg font-semibold tabular-nums">{d.pos > 0 ? d.pos : '–'}</span>
+              <span className="inline-block h-6 w-1 rounded" style={{ background: driverColor(d.user_id) }} />
+              <span><span className="block leading-tight">{nm(d)}</span><span className="block text-xs text-ink-300 tabular-nums">{d.laps ?? 0} Rd. · {fmtLap(d.best_ms)}</span></span>
+            </button>
+          ))}
+        </div>
+      </Card>
+    </div>
+  )
+}
 
 export function BotStandings({ bot, names, canHost }) {
   const [busy, run] = useAsync()
@@ -51,29 +149,9 @@ export function BotStandings({ bot, names, canHost }) {
 }
 
 export function BotVideo() {
-  const ref = useRef(null)
-  const [ok, setOk] = useState(null)
-  useEffect(() => {
-    const src = '/api/bot/hls/stream.m3u8'
-    let hls
-    fetch(src, { credentials: 'same-origin' }).then((r) => {
-      if (!r.ok) { setOk(false); return }
-      setOk(true)
-      const v = ref.current
-      if (Hls.isSupported()) {
-        hls = new Hls({ enableWorker: false, liveSyncDurationCount: 2, xhrSetup: (x) => { x.withCredentials = true } })
-        hls.loadSource(src); hls.attachMedia(v)
-      } else if (v.canPlayType('application/vnd.apple.mpegurl')) { v.src = src }
-    }).catch(() => setOk(false))
-    return () => hls?.destroy()
-  }, [])
-  if (ok === false) return null
   return (
     <Card title="Bot-Kamera" right={<Badge tone="red" dot>Live</Badge>}>
-      <div className="aspect-video overflow-hidden rounded-lg border border-ink-600 bg-black">
-        <video ref={ref} className="h-full w-full" muted autoPlay playsInline controls />
-      </div>
-      {ok === null && <div className="mt-2 flex justify-center"><Spinner /></div>}
+      <Player />
     </Card>
   )
 }

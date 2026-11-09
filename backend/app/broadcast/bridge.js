@@ -48,10 +48,12 @@
       r3e.getEventInfo(function (e) { state.event = e });
     } catch (e) { }
     autoFocus();
+    state.focus = focus;
     post('/api/bot/ingest', state).then(function (r) { return r.json() }).then(function (res) {
       fails = 0;
       var c = res && res.command;
-      if (c && cam(c.camera, c.slotId)) manualUntil = Date.now() + 5 * 60 * 1000;  // Regie hat 5 min Vorrang
+      if (c && c.camera === 'auto') { manualUntil = 0; focus = null }
+      else if (c && cam(c.camera, c.slotId)) manualUntil = Date.now() + 5 * 60 * 1000;  // Regie hat 5 min Vorrang
       el.textContent = 'Panel-Bridge verbunden · ' + (state.drivers || []).length + ' Fahrer [' + rawInfo + ']' + (focus !== null ? ' · Kamera Slot ' + focus : '');
     }).catch(function () { fails++; el.textContent = 'Panel-Bridge: keine Verbindung (' + fails + ')' });
   }

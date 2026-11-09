@@ -64,6 +64,7 @@ class Live:
         self.delta: dict[int, dict] = {}
         self.bot: dict[str, Any] = {"ts": 0}
         self.bot_cmd: Optional[dict] = None
+        self.bot_last: Optional[dict] = None   # letzter Regie-Befehl aus dem Panel
         self.bot_events: deque = deque(maxlen=50)
         self.visits: dict[tuple[int, int], dict] = {}
         self.visit_done: list[dict] = []
@@ -354,7 +355,7 @@ class Live:
                 "flags": si.get("flagInfo") or {},
             })
         drivers.sort(key=lambda d: (d["pos"] if isinstance(d["pos"], int) and d["pos"] > 0 else 999))
-        return {"connected": True, "session": b.get("session"), "event": b.get("event"), "drivers": drivers, "events": list(self.bot_events)[-15:]}
+        return {"connected": True, "focus": b.get("focus"), "last_cmd": self.bot_last, "session": b.get("session"), "event": b.get("event"), "drivers": drivers, "events": list(self.bot_events)[-15:]}
 
     # ------------------------------------------------------- Fahrer-Statistik
     def _acc(self, uid: int, sid: int, gs: dict, layout_id: Optional[int], p: dict, kmh: float, car: Optional[dict], dt: float, dist: float, inc_pts: int) -> None:
@@ -548,8 +549,8 @@ class WhitelistIn(BaseModel):
 
 
 class CameraIn(BaseModel):
-    slot: int = Field(..., ge=0, le=128)
-    camera: Literal["cockpit", "onboard", "onboard1", "onboard2", "nosecam", "swingman", "trackside", "frontCam", "rearCam", "wing", "exhaust"]
+    slot: int = Field(0, ge=0, le=128)
+    camera: Literal["auto", "cockpit", "onboard", "onboard1", "onboard2", "nosecam", "swingman", "trackside", "frontCam", "rearCam", "wing", "exhaust", "tv", "action", "heli", "static"]
 
 
 class BotCfgIn(BaseModel):
@@ -735,7 +736,8 @@ def setup(app, d: dict[str, Callable]) -> Live:
         if isinstance(drv, dict):  # GetDriversInfo liefert {"driversInfo": [...]}
             drv = drv.get("driversInfo")
         drv = [d for d in drv if isinstance(d, dict)][:64] if isinstance(drv, list) else []
-        hub.bot = {"ts": time.time(), "drivers": drv, "session": body.get("session"), "event": body.get("event")}
+        hub.bot = {"ts": time.time(), "drivers": drv, "session": body.get("session"), "event": body.get("event"),
+                   "focus": body.get("focus") if isinstance(body.get("focus"), int) else None}
         cmd, hub.bot_cmd = hub.bot_cmd, None
         return {"ok": True, "command": cmd}
 
@@ -758,6 +760,8 @@ def setup(app, d: dict[str, Callable]) -> Live:
     @r.post("/api/bot/camera")
     def bot_camera(body: CameraIn, user=Depends(require("host"))):
         hub.bot_cmd = {"slotId": body.slot, "camera": body.camera}
+        hub.bot_last = {"slot": body.slot, "camera": body.camera, "by": user.username, "ts": time.time()}
+        audit(user.username, "bot.camera", f"{body.camera} slot={body.slot}")
         return {"ok": True}
 
     @r.get("/api/bot/config")
