@@ -16,9 +16,16 @@ const CAMS = [['cockpit', 'Cockpit'], ['onboard', 'Onboard'], ['nosecam', 'Nase'
 
 // Ansichten: [Schlüssel, Name, Gruppe]
 export const VIEWS = [
-  ['swingman', 'Verfolger', 'Auto'], ['cockpit', 'Cockpit', 'Auto'], ['onboard', 'Onboard', 'Auto'], ['nosecam', 'Nase', 'Auto'],
-  ['frontCam', 'Front', 'Auto'], ['rearCam', 'Heck', 'Auto'], ['wing', 'Flügel', 'Auto'], ['exhaust', 'Auspuff', 'Auto'],
-  ['tv', 'TV', 'Strecke'], ['trackside', 'Streckenrand', 'Strecke'], ['action', 'Action', 'Strecke'], ['heli', 'Hubschrauber', 'Strecke'], ['static', 'Fest', 'Strecke'],
+  ['cockpit', 'Fahrer-POV', 'Fahrer'], ['onboard', 'Onboard', 'Fahrer'], ['nosecam', 'Nase', 'Fahrer'], ['swingman', 'Verfolger', 'Fahrer'],
+  ['frontCam', 'Front', 'Am Auto'], ['rearCam', 'Heck', 'Am Auto'], ['wing', 'Flügel', 'Am Auto'], ['exhaust', 'Auspuff', 'Am Auto'],
+  ['flFront', 'Rad vorn links', 'Boden'], ['frFront', 'Rad vorn rechts', 'Boden'], ['rlRear', 'Rad hinten links', 'Boden'], ['rrRear', 'Rad hinten rechts', 'Boden'], ['rlFront', 'Boden links', 'Boden'], ['rrFront', 'Boden rechts', 'Boden'],
+  ['tv', 'TV-Regie', 'Strecke'], ['trackside', 'Streckenrand', 'Strecke'], ['static', 'Tribüne / fest', 'Strecke'], ['action', 'Action', 'Strecke'], ['heli', 'Hubschrauber', 'Strecke'],
+]
+// Schnellwahl: [Schlüssel oder 'auto', Name, Beschreibung]
+const QUICK = [
+  ['cockpit', 'Fahrer-POV', 'Blick aus dem Cockpit'], ['swingman', 'Verfolger', 'Hinter dem Auto'], ['tv', 'TV-Regie', 'Wie im Fernsehen'],
+  ['static', 'Tribüne', 'Feste Kamera an der Strecke'], ['trackside', 'Streckenrand', 'Seitlich am Rand'], ['flFront', 'Boden', 'Rad-Kamera knapp über dem Asphalt'],
+  ['heli', 'Hubschrauber', 'Von oben'], ['auto', 'Automatisch', 'Folgt dem Führenden'],
 ]
 
 export function Player({ className = '' }) {
@@ -63,7 +70,7 @@ export function BotCamera({ bot, names, canHost, map }) {
   const pickDriver = (d) => { setAuto(false); send(view, d.slot) }
   const goAuto = () => { setAuto(true); send('auto', 0) }
   const viewLabel = VIEWS.find((v) => v[0] === view)?.[1] || view
-  const groups = ['Auto', 'Strecke']
+  const groups = ['Fahrer', 'Am Auto', 'Boden', 'Strecke']
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
@@ -80,17 +87,22 @@ export function BotCamera({ bot, names, canHost, map }) {
       </div>
       {canHost ? (
         <Card title="Ansicht">
-          <div className="space-y-3">
+          <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {QUICK.map(([k, l, d]) => {
+              const on = k === 'auto' ? auto : (!auto && view === k)
+              return <button key={k} disabled={busy} title={d} onClick={() => (k === 'auto' ? goAuto() : pickView(k))}
+                className={`rounded-lg border px-3 py-2.5 text-left transition ${on ? 'border-accent bg-accent/15' : 'border-ink-600 hover:border-ink-400'}`}>
+                <span className="block text-sm font-semibold">{l}</span><span className="block text-xs text-ink-300">{d}</span></button>
+            })}
+          </div>
+          <div className="space-y-3 border-t border-ink-600 pt-3">
+            <p className="text-xs uppercase tracking-wider text-ink-400">Alle Kameras</p>
             {groups.map((g) => (
               <div key={g} className="flex flex-wrap items-center gap-1.5">
-                <span className="w-16 text-xs uppercase tracking-wider text-ink-400">{g}</span>
+                <span className="w-20 text-xs uppercase tracking-wider text-ink-400">{g}</span>
                 {VIEWS.filter((v) => v[2] === g).map(([k, l]) => <button key={k} disabled={busy} className={`btn-sm ${view === k && !auto ? 'btn-primary' : 'btn-ghost'}`} onClick={() => pickView(k)}>{l}</button>)}
               </div>
             ))}
-            <div className="flex flex-wrap items-center gap-1.5">
-              <span className="w-16 text-xs uppercase tracking-wider text-ink-400">Regie</span>
-              <button disabled={busy} className={`btn-sm ${auto ? 'btn-primary' : 'btn-ghost'}`} onClick={goAuto}><Wand2 size={13} /> Automatisch (Führender)</button>
-            </div>
           </div>
         </Card>
       ) : <p className="text-xs text-ink-400">Die Kamera steuern Hosts und Admins.</p>}

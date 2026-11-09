@@ -550,7 +550,7 @@ class WhitelistIn(BaseModel):
 
 class CameraIn(BaseModel):
     slot: int = Field(0, ge=0, le=128)
-    camera: Literal["auto", "cockpit", "onboard", "onboard1", "onboard2", "nosecam", "swingman", "trackside", "frontCam", "rearCam", "wing", "exhaust", "tv", "action", "heli", "static"]
+    camera: Literal["auto", "cockpit", "onboard", "onboard1", "onboard2", "nosecam", "swingman", "trackside", "frontCam", "rearCam", "wing", "exhaust", "tv", "action", "heli", "static", "flFront", "frFront", "rlFront", "rlRear", "rrFront", "rrRear"]
 
 
 class BotCfgIn(BaseModel):
