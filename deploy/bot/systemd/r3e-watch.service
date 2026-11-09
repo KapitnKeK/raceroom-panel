@@ -1,0 +1,9 @@
+[Unit]
+Description=Waechter: Zuschauer-Bot tritt dem RaceRoom-Server wieder bei
+After=r3e-desktop.service network-online.target
+[Service]
+ExecStart=/usr/bin/python3 -u /usr/local/bin/r3e-watch.py
+Restart=always
+RestartSec=10
+[Install]
+WantedBy=multi-user.target

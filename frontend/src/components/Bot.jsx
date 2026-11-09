@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Camera, Copy, Eye, Flag, LayoutPanelLeft, Maximize2, Save, Trophy, Video, Wand2 } from 'lucide-react'
+import { Camera, Copy, Eye, Flag, LayoutPanelLeft, Maximize2, Save, Trophy, Video, Volume2, VolumeX, Wand2 } from 'lucide-react'
 import Hls from 'hls.js'
 import { api } from '../api'
 import { Badge, Card, Field, Spinner, useAsync, useToast } from './ui'
@@ -31,6 +31,7 @@ const QUICK = [
 export function Player({ className = '' }) {
   const ref = useRef(null)
   const [ok, setOk] = useState(null)
+  const [muted, setMuted] = useState(true)
   useEffect(() => {
     const src = '/api/bot/hls/stream.m3u8'
     let hls
@@ -47,7 +48,8 @@ export function Player({ className = '' }) {
   }, [])
   return (
     <div className={`relative aspect-video overflow-hidden rounded-lg border border-ink-600 bg-black ${className}`}>
-      {ok !== false && <video ref={ref} className="h-full w-full" muted autoPlay playsInline controls />}
+      {ok !== false && <video ref={ref} className="h-full w-full" muted autoPlay playsInline controls onVolumeChange={(e) => setMuted(e.target.muted)} />}
+      {ok && <button className="absolute right-3 top-3 flex items-center gap-1.5 rounded-lg bg-black/70 px-3 py-1.5 text-xs font-medium text-white backdrop-blur hover:bg-black/85" onClick={() => { const v = ref.current; if (v) { v.muted = !v.muted; if (!v.muted && v.volume === 0) v.volume = 0.8; v.play().catch(() => {}) } }}>{muted ? <><VolumeX size={14} /> Ton an</> : <><Volume2 size={14} /> Ton aus</>}</button>}
       {ok === null && <div className="absolute inset-0 grid place-items-center"><Spinner /></div>}
       {ok === false && <div className="absolute inset-0 grid place-items-center text-sm text-ink-300">Kein Videostream verfügbar</div>}
     </div>

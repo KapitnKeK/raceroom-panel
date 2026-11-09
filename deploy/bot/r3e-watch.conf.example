@@ -1,0 +1,6 @@
+# /etc/r3e-watch.conf  (chmod 600)
+MANAGER=http://192.0.2.20:8090   # Portproxy auf den RaceRoom-Manager (Host-Header localhost:8088 setzt das Skript)
+BOT_UID=0                        # RaceRoom-Benutzer-ID des Bot-Kontos (steht im Profil: "RR ID #...")
+TARGET=                          # leer = erster laufender Server, sonst genauer Servername
+INTERVAL=20
+MISSING_CHECKS=3

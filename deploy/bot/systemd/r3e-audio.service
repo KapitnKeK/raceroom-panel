@@ -1,0 +1,12 @@
+[Unit]
+Description=Virtueller Audio-Ausgang fuer den Bot (PulseAudio, Null-Sink r3e)
+After=r3e-xorg.service
+[Service]
+User=bot
+Environment=XDG_RUNTIME_DIR=/run/user/1000 HOME=/home/bot
+ExecStart=/usr/bin/pulseaudio --daemonize=no --exit-idle-time=-1 --log-target=journal
+ExecStartPost=/bin/sh -c 'sleep 2; pactl load-module module-null-sink sink_name=r3e sink_properties=device.description=r3e; pactl set-default-sink r3e'
+Restart=always
+RestartSec=2
+[Install]
+WantedBy=multi-user.target

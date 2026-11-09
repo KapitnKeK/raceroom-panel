@@ -1,12 +1,13 @@
 [Unit]
 Description=Bildschirm :0 per NVENC als HLS (fuer das RaceRoom-Panel)
-After=r3e-xorg.service
+After=r3e-xorg.service r3e-audio.service
 Requires=r3e-xorg.service
+Wants=r3e-audio.service
 [Service]
 User=bot
-Environment=DISPLAY=:0
+Environment=DISPLAY=:0 XDG_RUNTIME_DIR=/run/user/1000
 ExecStartPre=/bin/sh -c 'rm -f /var/www/hls/*'
-ExecStart=/usr/bin/ffmpeg -hide_banner -loglevel warning -nostdin -f x11grab -framerate 30 -video_size 1920x1080 -i :0 -vf scale=1280:720 -c:v h264_nvenc -preset p4 -tune ll -b:v 4M -maxrate 5M -bufsize 8M -g 30 -f hls -hls_time 1 -hls_list_size 6 -hls_flags delete_segments+independent_segments -hls_segment_filename /var/www/hls/seg_%%05d.ts /var/www/hls/stream.m3u8
+ExecStart=/usr/bin/ffmpeg -hide_banner -loglevel warning -nostdin -f x11grab -framerate 30 -video_size 1920x1080 -i :0 -f pulse -i r3e.monitor -vf scale=1280:720 -c:v h264_nvenc -preset p4 -tune ll -b:v 4M -maxrate 5M -bufsize 8M -g 30 -c:a aac -b:a 128k -ac 2 -af aresample=async=1 -f hls -hls_time 1 -hls_list_size 6 -hls_flags delete_segments+independent_segments -hls_segment_filename /var/www/hls/seg_%%05d.ts /var/www/hls/stream.m3u8
 Restart=always
 RestartSec=3
 [Install]

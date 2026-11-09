@@ -60,3 +60,16 @@ Zusätzlich als Steam-Startoption: `/usr/local/bin/r3e-launch %command% -nothrea
   `/api/bot/hls/stream.m3u8` nur an angemeldete Benutzer durch (Adresse unter *Steuerung → Zuschauer-Bot* eintragen).
 - **Offen:** Beim allerersten Start verlangt RaceRoom ein ausgefülltes Profil (Land) im Spiel; danach Mehrspieler →
   Server wählen → als Zuschauer beitreten. Ob die Sektorzeiten der Overlay-API kumuliert sind, ist noch zu prüfen.
+
+## Ton im Stream (PulseAudio)
+
+Der Bot hat keine Soundkarte. `r3e-audio.service` startet PulseAudio mit einem Null-Sink `r3e`; RaceRoom (Proton) spielt darauf,
+`r3e-stream.service` nimmt `r3e.monitor` zusammen mit dem Bild als AAC in den HLS-Stream auf. Im Panel ist der Player zunächst
+stumm (Browser-Autoplay), der Knopf „Ton an“ schaltet ihn ein. RaceRoom muss nach dem Einrichten einmal neu gestartet werden.
+
+## Wächter (`r3e-watch.py`)
+
+Dienst `r3e-watch.service`: prüft alle 20 s über den Manager, ob der Bot (`BOT_UID`) auf einem laufenden Server in der Spielerliste steht.
+Fehlt er dreimal hintereinander, tritt er über die Spiel-Menüs wieder bei (xdotool-Klicks, Passwort stammt vom Manager) und startet
+RaceRoom bei Bedarf über Steam neu. Nach 3 erfolglosen Versuchen 30 Minuten Pause. Die Klickkoordinaten gelten für 1920x1080 und die
+Menüs der RaceRoom-Version vom November 2026; sie können nach Spiel-Updates abweichen. Protokoll: `journalctl -u r3e-watch -o cat | grep -v pam_unix`.
