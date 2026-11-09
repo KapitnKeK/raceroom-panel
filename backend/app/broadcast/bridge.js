@@ -8,10 +8,19 @@
     return fetch(location.origin + path, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Bot-Token': token }, body: JSON.stringify(body) });
   }
   if (!window.r3e) { el.textContent = 'Kein RaceRoom-Client (r3e.js)'; return }
+  var rawInfo = '';
   function list(d) {
+    // Fahrerliste im Antwortobjekt des Spiels suchen (Format je nach Version unterschiedlich)
+    var t = typeof d;
+    rawInfo = Array.isArray(d) ? 'array' : (d && t === 'object' ? 'obj{' + Object.keys(d).slice(0, 6).join(',') + '}' : t);
     if (Array.isArray(d)) return d;
-    if (d && Array.isArray(d.driversInfo)) return d.driversInfo;
-    if (d && Array.isArray(d.drivers)) return d.drivers;
+    if (d && t === 'object') {
+      var k, j, v;
+      for (k in d) if (Array.isArray(d[k])) return d[k];
+      for (k in d) { v = d[k]; if (v && typeof v === 'object') for (j in v) if (Array.isArray(v[j])) return v[j]; }
+      var vals = Object.keys(d).map(function (x) { return d[x] });
+      if (vals.length && vals.every(function (x) { return x && typeof x === 'object' && 'slotId' in x })) return vals;
+    }
     return [];
   }
   function cam(name, slot) {
@@ -43,7 +52,7 @@
       fails = 0;
       var c = res && res.command;
       if (c && cam(c.camera, c.slotId)) manualUntil = Date.now() + 5 * 60 * 1000;  // Regie hat 5 min Vorrang
-      el.textContent = 'Panel-Bridge verbunden · ' + (state.drivers || []).length + ' Fahrer' + (focus !== null ? ' · Kamera Slot ' + focus : '');
+      el.textContent = 'Panel-Bridge verbunden · ' + (state.drivers || []).length + ' Fahrer [' + rawInfo + ']' + (focus !== null ? ' · Kamera Slot ' + focus : '');
     }).catch(function () { fails++; el.textContent = 'Panel-Bridge: keine Verbindung (' + fails + ')' });
   }
   try { r3e.on.resultsUpdate(function (r) { post('/api/bot/results', r) }) } catch (e) { }
